@@ -77,6 +77,15 @@
             // with the name given in settings.fieldName.
             singleFieldNode: null,
 
+            // used in conjuction with singleFieldNode
+            // if true assume the input field value is a JSON string representing an
+            // array with label and value. Example:
+            //      [{ label: 'First Tag', value: 1}, { label: 'Second tag', value: 2 }]
+            // This is useful for storing extra data with the tags for many-to-many relationships
+            // on the backend
+
+            singleFieldNodeJsonData: false,
+
             // Whether to animate tag removals or not.
             animate: true,
 
@@ -191,16 +200,25 @@
             // Single field support.
             var addedExistingFromSingleFieldNode = false;
             if (this.options.singleField) {
-                if (this.options.singleFieldNode) {
+                var node;
+                if (this.options.singleFieldNode && !this.options.singleFieldNodeJsonData) {
                     // Add existing tags from the input field.
-                    var node = $(this.options.singleFieldNode);
+                    node = $(this.options.singleFieldNode);
                     var tags = node.val().split(this.options.singleFieldDelimiter);
                     node.val('');
                     $.each(tags, function(index, tag) {
                         that.createTag(tag, null, true);
                         addedExistingFromSingleFieldNode = true;
                     });
-                } else {
+                } else if (this.options.singleFieldNode && this.options.singleFieldNodeJsonData) {
+                    // this will build the tags from a JSON array stored in the input value field
+                    node = $(this.options.singleFieldNode);
+                    var items = JSON.parse(node.val());
+                    $.each(items, function(index, item) {
+                        that.createTag(item.label, null, true);
+                        addedExistingFromSingleFieldNode = true;
+                    });
+                }  else {
                     // Create our single field input after our list.
                     this.options.singleFieldNode = $('<input type="hidden" style="display:none;" value="" name="' + this.options.fieldName + '" />');
                     this.tagList.after(this.options.singleFieldNode);
