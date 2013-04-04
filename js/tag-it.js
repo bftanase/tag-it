@@ -215,7 +215,7 @@
                     node = $(this.options.singleFieldNode);
                     var items = JSON.parse(node.val());
                     $.each(items, function(index, item) {
-                        that.createTag(item.label, null, true);
+                        that.createTag(item, null, true);
                         addedExistingFromSingleFieldNode = true;
                     });
                 }  else {
@@ -298,7 +298,11 @@
             if (this.options.availableTags || this.options.tagSource || this.options.autocomplete.source) {
                 var autocompleteOptions = {
                     select: function(event, ui) {
-                        that.createTag(ui.item.value);
+                        if (that.options.singleFieldNodeJsonData) {
+                            that.createTag(ui.item);
+                        } else {
+                            that.createTag(ui.item.value);
+                        }
                         // Preventing the tag input to be updated with the chosen value.
                         return false;
                     }
@@ -334,7 +338,13 @@
             // Returns an array of tag string values
             var that = this;
             var tags = [];
-            if (this.options.singleField) {
+            if (this.options.singleField && this.options.singleFieldNodeJsonData) {
+                if ($(this.options.singleFieldNode).val() == '') {
+                    tags = []
+                } else {
+                    tags = JSON.parse(this.options.singleFieldNode.val());
+                }
+            } else if (this.options.singleField) {
                 tags = $(this.options.singleFieldNode).val().split(this.options.singleFieldDelimiter);
                 if (tags[0] === '') {
                     tags = [];
@@ -348,8 +358,14 @@
         },
 
         _updateSingleTagsField: function(tags) {
-            // Takes a list of tag string values, updates this.options.singleFieldNode.val to the tags delimited by this.options.singleFieldDelimiter
-            $(this.options.singleFieldNode).val(tags.join(this.options.singleFieldDelimiter)).trigger('change');
+            if (this.options.singleFieldNodeJsonData) {
+                var jsonString = JSON.stringify(tags);
+                console.log("tags.toString() = " + jsonString);
+                $(this.options.singleFieldNode).val(jsonString);
+            } else {
+                // Takes a list of tag string values, updates this.options.singleFieldNode.val to the tags delimited by this.options.singleFieldDelimiter
+                $(this.options.singleFieldNode).val(tags.join(this.options.singleFieldDelimiter)).trigger('change');
+            }
         },
 
         _subtractArray: function(a1, a2) {
@@ -403,9 +419,12 @@
         },
 
         createTag: function(value, additionalClass, duringInitialization) {
+            console.log("value " + JSON.stringify(value));
             var that = this;
 
-            value = $.trim(value);
+            if (!this.options.singleFieldNodeJsonData) {
+                value = $.trim(value);
+            }
 
             if(this.options.preprocessTag) {
                 value = this.options.preprocessTag(value);
@@ -433,7 +452,13 @@
                 return false;
             }
 
-            var label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value);
+            var label;
+            if (this.options.singleFieldNodeJsonData) {
+                console.debug("label: " + JSON.stringify(value));
+                label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value.label);
+            } else {
+                label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value);
+            }
 
             // Create tag.
             var tag = $('<li></li>')
@@ -441,6 +466,9 @@
                 .addClass(additionalClass)
                 .append(label);
 
+            if (this.options.singleFieldNodeJsonData) {
+                tag.attr('data-value', value.value);
+            }
             if (this.options.readOnly){
                 tag.addClass('tagit-choice-read-only');
             } else {
@@ -474,6 +502,7 @@
 
             if (this.options.singleField) {
                 var tags = this.assignedTags();
+
                 tags.push(value);
                 this._updateSingleTagsField(tags);
             }
