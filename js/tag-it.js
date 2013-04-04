@@ -36,9 +36,6 @@
             removeConfirmation: false,  // Require confirmation to remove tags.
             tagLimit          : null,   // Max number of tags allowed (null for unlimited).
 
-            // Used for autocomplete, unless you override `autocomplete.source`.
-            availableTags     : [],
-
             // Use to override or add any options to the autocomplete widget.
             //
             // By default, autocomplete.source will map to availableTags,
@@ -62,11 +59,8 @@
             // on an INPUT element, in which case singleField is automatically
             // set to true, and singleFieldNode is set to that element. This
             // way, you don't need to fiddle with these options.
-            singleField: false,
+            singleField: true,
 
-            // This is just used when preloading data from the field, and for
-            // populating the field with delimited tags as the user adds them.
-            singleFieldDelimiter: ',',
 
             // Set this to an input DOM node to use an existing form field.
             // Any text in it will be erased on init. But it will be
@@ -103,17 +97,6 @@
             onTagClicked        : null,
             onTagLimitExceeded  : null,
 
-
-            // DEPRECATED:
-            //
-            // /!\ These event callbacks are deprecated and WILL BE REMOVED at some
-            // point in the future. They're here for backwards-compatibility.
-            // Use the above before/after event callbacks instead.
-            onTagAdded  : null,
-            onTagRemoved: null,
-            // `autocomplete.source` is the replacement for tagSource.
-            tagSource: null
-            // Do not use the above deprecated options.
         },
 
         _create: function() {
@@ -145,18 +128,6 @@
                 this.tagInput.attr('placeholder', this.options.placeholderText);
             }
 
-            if (!this.options.autocomplete.source) {
-                this.options.autocomplete.source = function(search, showChoices) {
-                    var filter = search.term.toLowerCase();
-                    var choices = $.grep(this.options.availableTags, function(element) {
-                        // Only match autocomplete options that begin with the search term.
-                        // (Case insensitive.)
-                        return (element.toLowerCase().indexOf(filter) === 0);
-                    });
-                    showChoices(this._subtractArray(choices, this.assignedTags()));
-                };
-            }
-
             if (this.options.showAutocompleteOnFocus) {
                 this.tagInput.focus(function(event, ui) {
                     that._showAutocomplete();
@@ -170,11 +141,6 @@
             // Bind autocomplete.source callback functions to this context.
             if ($.isFunction(this.options.autocomplete.source)) {
                 this.options.autocomplete.source = $.proxy(this.options.autocomplete.source, this);
-            }
-
-            // DEPRECATED.
-            if ($.isFunction(this.options.tagSource)) {
-                this.options.tagSource = $.proxy(this.options.tagSource, this);
             }
 
             this.tagList
@@ -201,28 +167,14 @@
             var addedExistingFromSingleFieldNode = false;
             if (this.options.singleField) {
                 var node;
-                if (this.options.singleFieldNode && !this.options.singleFieldNodeJsonData) {
-                    // Add existing tags from the input field.
-                    node = $(this.options.singleFieldNode);
-                    var tags = node.val().split(this.options.singleFieldDelimiter);
-                    node.val('');
-                    $.each(tags, function(index, tag) {
-                        that.createTag(tag, null, true);
-                        addedExistingFromSingleFieldNode = true;
-                    });
-                } else if (this.options.singleFieldNode && this.options.singleFieldNodeJsonData) {
-                    // this will build the tags from a JSON array stored in the input value field
-                    node = $(this.options.singleFieldNode);
-                    var items = JSON.parse(node.val());
-                    $.each(items, function(index, item) {
-                        that.createTag(item, null, true);
-                        addedExistingFromSingleFieldNode = true;
-                    });
-                }  else {
-                    // Create our single field input after our list.
-                    this.options.singleFieldNode = $('<input type="hidden" style="display:none;" value="" name="' + this.options.fieldName + '" />');
-                    this.tagList.after(this.options.singleFieldNode);
-                }
+
+                // this will build the tags from a JSON array stored in the input value field
+                node = $(this.options.singleFieldNode);
+                var items = JSON.parse(node.val());
+                $.each(items, function(index, item) {
+                    that.createTag(item, null, true);
+                    addedExistingFromSingleFieldNode = true;
+                });
             }
 
             // Add existing tags from the list, if any.
@@ -295,23 +247,17 @@
                 });
 
             // Autocomplete.
-            if (this.options.availableTags || this.options.tagSource || this.options.autocomplete.source) {
+            if (this.options.autocomplete.source) {
                 var autocompleteOptions = {
                     select: function(event, ui) {
-                        if (that.options.singleFieldNodeJsonData) {
-                            that.createTag(ui.item);
-                        } else {
-                            that.createTag(ui.item.value);
-                        }
+
+                        that.createTag(ui.item);
+
                         // Preventing the tag input to be updated with the chosen value.
                         return false;
                     }
                 };
                 $.extend(autocompleteOptions, this.options.autocomplete);
-
-                // tagSource is deprecated, but takes precedence here since autocomplete.source is set by default,
-                // while tagSource is left null by default.
-                autocompleteOptions.source = this.options.tagSource || autocompleteOptions.source;
 
                 this.tagInput.autocomplete(autocompleteOptions).bind('autocompleteopen', function(event, ui) {
                     that.tagInput.data('autocomplete-open', true);
@@ -338,22 +284,13 @@
             // Returns an array of tag string values
             var that = this;
             var tags = [];
-            if (this.options.singleField && this.options.singleFieldNodeJsonData) {
-                if ($(this.options.singleFieldNode).val() == '') {
-                    tags = []
-                } else {
-                    tags = JSON.parse(this.options.singleFieldNode.val());
-                }
-            } else if (this.options.singleField) {
-                tags = $(this.options.singleFieldNode).val().split(this.options.singleFieldDelimiter);
-                if (tags[0] === '') {
-                    tags = [];
-                }
+
+            if ($(this.options.singleFieldNode).val() == '') {
+                tags = []
             } else {
-                this._tags().each(function() {
-                    tags.push(that.tagLabel(this));
-                });
+                tags = JSON.parse(this.options.singleFieldNode.val());
             }
+
             return tags;
         },
 
@@ -422,10 +359,6 @@
             console.log("value " + JSON.stringify(value));
             var that = this;
 
-            if (!this.options.singleFieldNodeJsonData) {
-                value = $.trim(value);
-            }
-
             if(this.options.preprocessTag) {
                 value = this.options.preprocessTag(value);
             }
@@ -453,12 +386,10 @@
             }
 
             var label;
-            if (this.options.singleFieldNodeJsonData) {
-                console.debug("label: " + JSON.stringify(value));
-                label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value.label);
-            } else {
-                label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value);
-            }
+
+            // build tag content
+            console.debug("label: " + JSON.stringify(value));
+            label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value.label);
 
             // Create tag.
             var tag = $('<li></li>')
@@ -466,9 +397,9 @@
                 .addClass(additionalClass)
                 .append(label);
 
-            if (this.options.singleFieldNodeJsonData) {
-                tag.attr('data-value', value.value);
-            }
+            // add some extra info to the <li> elments
+            tag.attr('data-value', value.value);
+
             if (this.options.readOnly){
                 tag.addClass('tagit-choice-read-only');
             } else {
@@ -486,11 +417,6 @@
                 tag.append(removeTag);
             }
 
-            // Unless options.singleField is set, each tag has a hidden input field inline.
-            if (!this.options.singleField) {
-                var escapedValue = label.html();
-                tag.append('<input type="hidden" style="display:none;" value="' + escapedValue + '" name="' + this.options.fieldName + '" />');
-            }
 
             if (this._trigger('beforeTagAdded', null, {
                 tag: tag,
@@ -500,15 +426,11 @@
                 return;
             }
 
-            if (this.options.singleField) {
-                var tags = this.assignedTags();
 
-                tags.push(value);
-                this._updateSingleTagsField(tags);
-            }
+            var tags = this.assignedTags();
 
-            // DEPRECATED.
-            this._trigger('onTagAdded', null, tag);
+            tags.push(value);
+            this._updateSingleTagsField(tags);
 
             this.tagInput.val('');
 
