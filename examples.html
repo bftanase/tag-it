@@ -36,19 +36,37 @@
     <script>
         $(function(){
 
-            var jsonInput = $("#json-tags-input");
+            var populatedJsonInput = $("#json-tags-populated-input");
+            var emptyJsonInput = $("#json-tags-empty-input");
+            var singleJsonInput = $("#json-single-tags-input");
+            var autocompleteValues = [
+                {value: "1", label: "auto1"},
+                {value: "2", label: 'auto2'}
+            ];
 
-            $("#json-tags").tagit({
-                singleField: true,
-                singleFieldNode: jsonInput,
-                singleFieldNodeJsonData: true,
+            $("#json-tags-populated").tagit({
+                singleFieldNode: populatedJsonInput,
                 autocomplete: {
-                    source: [
-                        {value: "1", label: "auto1"},
-                        {value: "2", label: 'auto2'}
-                    ]
+                    source: autocompleteValues
                 }
             })
+
+            $("#json-tags-empty").tagit({
+                singleFieldNode: emptyJsonInput,
+                autocomplete: {
+                    source: autocompleteValues
+                }
+            })
+
+            $("#json-tags-single").tagit({
+                singleFieldNode: singleJsonInput,
+                autocomplete: {
+                    source: autocompleteValues
+                },
+                tagLimit: 1
+            })
+
+
         });
     </script>
 
@@ -63,10 +81,22 @@
     <div id="content">
 
         <p>Demo for json data mode</p>
-        <ul id="json-tags"></ul>
+        <ul id="json-tags-populated"></ul>
+        <p>You'll want to use this input as a hidden field and prepopulate it with data from your backend</p>
 
-        <input style="width: 600px;" type="text" id="json-tags-input" name="json_tags" value='[{ "label": "First tag", "value": 1 }, { "label": "Second tag", "value": 2 }]' />
+        <p><b>Warning!</b> Be sure to use singel quotes (') when setting the json value on the input</p>
+        <input style="width: 400px;" type="text" id="json-tags-populated-input" name="json_tags_populated"
+               value='[{ "label": "First tag", "value": 1 }, { "label": "Second tag", "value": 2 }]' />
 
+        <p>Empty json tag</p>
+        <ul id="json-tags-empty"></ul>
+        <input style="width: 400px;" type="text" id="json-tags-empty-input" name="json_tags_empty"
+               value='' />
+
+        <p>Single tag (tagLimit = 1)</p>
+        <ul id="json-tags-single"></ul>
+        <input style="width: 400px;" type="text" id="json-single-tags-input" name="json_tags_single"
+               value='' />
 
     <div id="footer"> 
         <div class="left">
