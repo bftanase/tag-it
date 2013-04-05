@@ -95,11 +95,14 @@
             afterTagRemoved     : null,
 
             onTagClicked        : null,
-            onTagLimitExceeded  : null,
+            onTagLimitExceeded  : null
 
         },
 
         _create: function() {
+            console.log("__intitialization ...");
+
+            var isFirstRun = true;
             // for handling static scoping inside callbacks
             var that = this;
 
@@ -255,6 +258,12 @@
 
                         // Preventing the tag input to be updated with the chosen value.
                         return false;
+                    },
+                    focus: function(event, ui) {
+                        console.log("running focus ...");
+//                        debugger;
+                        that.tagInput.val(ui.item.label);
+                        return false;
                     }
                 };
                 $.extend(autocompleteOptions, this.options.autocomplete);
@@ -265,6 +274,11 @@
                     that.tagInput.data('autocomplete-open', false)
                 });
             }
+
+            console.log("__ end initialization");
+
+            isFirstRun = false;
+
         },
 
         _cleanedInput: function() {
@@ -340,8 +354,22 @@
             return tag;
         },
 
+        _findTagByValue: function(valueStr) {
+            var that = this;
+            var tag = null;
+
+            this._tags().each(function(i) {
+                if (valueStr == $(this).attr("data-value")) {
+                    tag = $(this);
+                    return false;
+                }
+            });
+
+            return tag;
+        },
+
         _isNew: function(name) {
-            return !this._findTagByLabel(name);
+            return !this._findTagByValue(name.value);
         },
 
         _formatStr: function(str) {
@@ -355,20 +383,26 @@
             return Boolean($.effects && ($.effects[name] || ($.effects.effect && $.effects.effect[name])));
         },
 
-        createTag: function(value, additionalClass, duringInitialization) {
-            console.log("value " + JSON.stringify(value));
-            var that = this;
-
-            if(this.options.preprocessTag) {
-                value = this.options.preprocessTag(value);
-            }
-
-            if (value === '') {
+        createTag: function(item, additionalClass, duringInitialization) {
+            if (item.value == undefined) {
                 return false;
             }
 
-            if (!this.options.allowDuplicates && !this._isNew(value)) {
-                var existingTag = this._findTagByLabel(value);
+            console.log("value " + JSON.stringify(item));
+            var that = this;
+
+            if(this.options.preprocessTag) {
+                item = this.options.preprocessTag(item);
+            }
+
+            if (item === '') {
+                return false;
+            }
+
+            if (!this.options.allowDuplicates && !this._isNew(item)) {
+//                var existingTag = this._findTagByLabel(value);
+                console.log("valueStr: " + item.value);
+                var existingTag = this._findTagByValue(item.value);
                 if (this._trigger('onTagExists', null, {
                     existingTag: existingTag,
                     duringInitialization: duringInitialization
@@ -388,8 +422,8 @@
             var label;
 
             // build tag content
-            console.debug("label: " + JSON.stringify(value));
-            label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(value.label);
+            console.debug("label: " + JSON.stringify(item));
+            label = $(this.options.onTagClicked ? '<a class="tagit-label"></a>' : '<span class="tagit-label"></span>').text(item.label);
 
             // Create tag.
             var tag = $('<li></li>')
@@ -398,7 +432,7 @@
                 .append(label);
 
             // add some extra info to the <li> elments
-            tag.attr('data-value', value.value);
+            tag.attr('data-value', item.value);
 
             if (this.options.readOnly){
                 tag.addClass('tagit-choice-read-only');
@@ -426,12 +460,12 @@
                 return;
             }
 
+            if (!duringInitialization) {
+                var tags = this.assignedTags();
 
-            var tags = this.assignedTags();
-
-            tags.push(value);
-            this._updateSingleTagsField(tags);
-
+                tags.push(item);
+                this._updateSingleTagsField(tags);
+            }
             this.tagInput.val('');
 
             // Insert tag.
@@ -453,19 +487,17 @@
 
             tag = $(tag);
 
-            // DEPRECATED.
-            this._trigger('onTagRemoved', null, tag);
-
             if (this._trigger('beforeTagRemoved', null, {tag: tag, tagLabel: this.tagLabel(tag)}) === false) {
                 return;
             }
 
             if (this.options.singleField) {
                 var tags = this.assignedTags();
-                var removedTagLabel = this.tagLabel(tag);
-                tags = $.grep(tags, function(el){
-                    return el != removedTagLabel;
-                });
+
+                var elementIndex = tag.index();
+
+                tags.splice(elementIndex, 1);
+
                 this._updateSingleTagsField(tags);
             }
 
